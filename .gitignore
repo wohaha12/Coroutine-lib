@@ -1,0 +1,28 @@
+# 忽略可执行文件
+*.exe
+*.out
+*.o
+*.so
+*.dll
+*.dylib
+
+# 忽略编译生成的文件
+test
+
+# 忽略操作系统生成的文件
+.DS_Store
+Thumbs.db
+
+# 忽略临时文件
+*.swp
+*.swo
+*~
+
+# 忽略IDE相关文件
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
