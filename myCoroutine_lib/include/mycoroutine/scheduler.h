@@ -1,16 +1,17 @@
-#ifndef _SCHEDULER_H_
-#define _SCHEDULER_H_
+#ifndef __MYCOROUTINE_SCHEDULER_H_
+#define __MYCOROUTINE_SCHEDULER_H_
 
 // 调度器头文件定义
 // 注意：hook.h头文件被注释掉了，暂时没有使用
 //#include "hook.h"
-#include "fiber.h"    // 包含协程相关头文件
-#include "thread.h"   // 包含线程相关头文件
+#include <mycoroutine/fiber.h>    // 包含协程相关头文件
+#include <mycoroutine/thread.h>   // 包含线程相关头文件
 
 #include <mutex>      // 互斥锁头文件
 #include <vector>     // 向量容器头文件
+#include <string>     // 字符串头文件
 
-namespace sylar {  // sylar命名空间
+namespace mycoroutine {  // mycoroutine命名空间
 
 /**
  * @brief 协程调度器类
@@ -95,7 +96,7 @@ public:
      * 等待所有任务完成，并停止所有工作线程
      */
     virtual void stop();    
-    
+
 protected:
     /**
      * @brief 唤醒线程函数
@@ -206,6 +207,7 @@ private:
 
 private:
     std::string m_name;                  // 调度器名称
+    bool m_useCaller;                    // 主线程是否用作工作线程
     std::mutex m_mutex;                  // 互斥锁，保护任务队列
     std::vector<std::shared_ptr<Thread>> m_threads;  // 线程池
     std::vector<ScheduleTask> m_tasks;   // 任务队列
@@ -213,13 +215,11 @@ private:
     size_t m_threadCount = 0;            // 需要额外创建的线程数
     std::atomic<size_t> m_activeThreadCount = {0};  // 活跃线程数
     std::atomic<size_t> m_idleThreadCount = {0};    // 空闲线程数
-
-    bool m_useCaller;                    // 主线程是否用作工作线程
     std::shared_ptr<Fiber> m_schedulerFiber;  // 调度协程（仅当m_useCaller为true时有效）
     int m_rootThread = -1;               // 主线程ID（仅当m_useCaller为true时有效）
     bool m_stopping = false;             // 是否正在关闭调度器
 };
 
-}
+} // end namespace mycoroutine
 
 #endif

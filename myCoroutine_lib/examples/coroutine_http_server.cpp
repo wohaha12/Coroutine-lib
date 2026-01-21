@@ -1,11 +1,11 @@
 /**
- * @file main.cpp
+ * @file coroutine_http_server.cpp
  * @brief 协程化IO事件管理器示例程序
  * @details 演示如何使用协程和IO事件管理器实现非阻塞的HTTP服务器
  */
 
-#include "ioscheduler.h"   // IO事件管理器头文件
-#include "hook.h"          // 系统调用钩子头文件
+#include "mycoroutine/iomanager.h"   // IO事件管理器头文件
+#include "mycoroutine/hook.h"          // 系统调用钩子头文件
 #include <unistd.h>         // UNIX标准函数库
 #include <sys/types.h>      // 系统数据类型定义
 #include <sys/socket.h>     // 套接字API
@@ -47,7 +47,7 @@ void error(const char *msg)
 void watch_io_read()
 {
     // 获取当前IO管理器实例，并为监听套接字添加读事件，回调函数为test_accept
-    sylar::IOManager::GetThis()->addEvent(sock_listen_fd, sylar::IOManager::READ, test_accept);
+    mycoroutine::IOManager::GetThis()->addEvent(sock_listen_fd, mycoroutine::IOManager::READ, test_accept);
 }
 
 /**
@@ -77,7 +77,7 @@ void test_accept()
         fcntl(fd, F_SETFL, O_NONBLOCK);
         
         // 为新连接添加读事件回调
-        sylar::IOManager::GetThis()->addEvent(fd, sylar::IOManager::READ, [fd]()
+        mycoroutine::IOManager::GetThis()->addEvent(fd, mycoroutine::IOManager::READ, [fd]()
         {
             char buffer[1024];         // 接收缓冲区
             memset(buffer, 0, sizeof(buffer)); // 清零初始化
@@ -131,7 +131,7 @@ void test_accept()
     }
     
     // 重新为监听套接字添加读事件，继续接受新连接
-    sylar::IOManager::GetThis()->addEvent(sock_listen_fd, sylar::IOManager::READ, test_accept);
+    mycoroutine::IOManager::GetThis()->addEvent(sock_listen_fd, mycoroutine::IOManager::READ, test_accept);
 }
 
 /**
@@ -142,7 +142,7 @@ void test_iomanager()
 {
     int portno = 8080;                       // 服务器监听端口
     struct sockaddr_in server_addr, client_addr; // 服务器和客户端地址结构体
-    socklen_t client_len = sizeof(client_addr);  // 客户端地址长度
+    (void)client_addr;  // 客户端地址结构体，用于消除未使用变量警告
 
     // 创建TCP套接字（这里会被hook）
     sock_listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -178,21 +178,19 @@ void test_iomanager()
     fcntl(sock_listen_fd, F_SETFL, O_NONBLOCK);
     
     // 创建IO事件管理器，工作线程数为9
-    sylar::IOManager iom(9);
+    mycoroutine::IOManager iom(9);
     
     // 为监听套接字添加读事件，回调函数为test_accept
-    iom.addEvent(sock_listen_fd, sylar::IOManager::READ, test_accept);
+    iom.addEvent(sock_listen_fd, mycoroutine::IOManager::READ, test_accept);
     
     // IO管理器会在此阻塞，直到所有事件处理完毕或被手动停止
 }
 
 /**
  * @brief 程序入口函数
- * @param argc 命令行参数数量
- * @param argv 命令行参数数组
  * @return 程序退出状态码
  */
-int main(int argc, char *argv[])
+int main()
 {
     // 调用测试函数，启动HTTP服务器
     test_iomanager();

@@ -1,11 +1,12 @@
-#ifndef _THREAD_H_
-#define _THREAD_H_
+#ifndef __MYCOROUTINE_THREAD_H_
+#define __MYCOROUTINE_THREAD_H_
 
 #include <mutex>
 #include <condition_variable>
-#include <functional>     
+#include <functional>
+#include <string>         
 
-namespace sylar
+namespace mycoroutine
 {
 
 /**

@@ -3,8 +3,8 @@
  * @brief 系统调用钩子头文件
  * @details 定义了需要被hook的系统调用函数指针类型和函数声明，用于实现协程化的系统调用
  */
-#ifndef _HOOK_H_
-#define _HOOK_H_
+#ifndef __MYCOROUTINE_HOOK_H_
+#define __MYCOROUTINE_HOOK_H_
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -13,7 +13,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-namespace sylar{
+namespace mycoroutine{
 
 /**
  * @brief 检查钩子是否启用
@@ -62,7 +62,7 @@ extern "C"
 	/**
 	 * @brief 原始nanosleep函数指针
 	 */
-	extern nanosleep_fun nanosleep_f;	
+	extern nanosleep_fun nanosleep_f;    
 
 	/**
 	 * @brief socket函数指针类型

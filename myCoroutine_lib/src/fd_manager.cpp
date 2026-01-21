@@ -1,11 +1,11 @@
-#include "fd_manager.h" // 引入文件描述符管理器头文件
-#include "hook.h"       // 引入系统调用钩子
+#include "mycoroutine/fd_manager.h" // 引入文件描述符管理器头文件
+#include "mycoroutine/hook.h"       // 引入系统调用钩子
 
 #include <sys/types.h>   // 引入系统类型定义
 #include <sys/stat.h>    // 引入文件状态相关函数
 #include <unistd.h>      // 引入系统调用函数
 
-namespace sylar{  // sylar命名空间
+namespace mycoroutine{  // mycoroutine命名空间
 
 // 显式实例化单例模板类
 template class Singleton<FdManager>;
@@ -142,7 +142,7 @@ std::shared_ptr<FdCtx> FdManager::get(int fd, bool auto_create)
 	// 读锁保护
 	std::shared_lock<std::shared_mutex> read_lock(m_mutex);
 	// 检查容器大小是否足够
-	if(m_datas.size() <= fd)
+	if(m_datas.size() <= (size_t)fd)
 	{
 		// 如果不自动创建，返回nullptr
 		if(auto_create == false)
@@ -164,7 +164,7 @@ std::shared_ptr<FdCtx> FdManager::get(int fd, bool auto_create)
 	std::unique_lock<std::shared_mutex> write_lock(m_mutex);
 
 	// 二次检查，防止在锁切换期间被其他线程修改
-	if(m_datas.size() <= fd)
+	if(m_datas.size() <= (size_t)fd)
 	{
 		// 扩容，扩展为当前需要的1.5倍
 		m_datas.resize(fd * 1.5);
@@ -184,7 +184,7 @@ void FdManager::del(int fd)
 	// 写锁保护
 	std::unique_lock<std::shared_mutex> write_lock(m_mutex);
 	// 检查文件描述符是否在有效范围内
-	if(m_datas.size() <= fd)
+	if(m_datas.size() <= (size_t)fd)
 	{
 		return;
 	}
@@ -192,4 +192,4 @@ void FdManager::del(int fd)
 	m_datas[fd].reset();
 }
 
-} // end namespace sylar
+} // end namespace mycoroutine

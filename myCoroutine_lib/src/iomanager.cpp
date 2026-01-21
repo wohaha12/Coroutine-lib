@@ -1,15 +1,17 @@
 // 包含必要的系统头文件
 #include <unistd.h>     // Unix标准函数，包含文件操作和进程控制
 #include <sys/epoll.h>  // epoll IO多路复用机制
+#include <sys/eventfd.h> // eventfd机制，用于线程间唤醒
 #include <fcntl.h>      // 文件控制函数
 #include <cstring>      // C风格字符串处理
+#include <cstdlib>      // 包含exit等函数
 
-#include "ioscheduler.h"  // IO管理器头文件
+#include <mycoroutine/iomanager.h>  // IO管理器头文件
 
 // 调试标志，用于控制调试信息输出
 static bool debug = true;
 
-namespace sylar {
+namespace mycoroutine {
 
 /**
  * @brief 获取当前线程的IO管理器实例
@@ -29,16 +31,18 @@ IOManager* IOManager::GetThis()
 IOManager::FdContext::EventContext& IOManager::FdContext::getEventContext(Event event) 
 {
     // 确保事件类型有效
-    assert(event==READ || event==WRITE);    
+    assert(event==READ || event==WRITE || event==NONE);    
     switch (event) 
     {
     case READ:
         return read;  // 返回读事件上下文
     case WRITE:
         return write; // 返回写事件上下文
+    case NONE:
+        throw std::invalid_argument("NONE event type is not supported");
+    default:
+        throw std::invalid_argument("Unsupported event type");
     }
-    // 如果事件类型无效，抛出异常
-    throw std::invalid_argument("Unsupported event type");
 }
 
 /**
@@ -96,21 +100,19 @@ Scheduler(threads, use_caller, name), TimerManager()
     m_epfd = epoll_create(5000);
     assert(m_epfd > 0); // 确保epoll创建成功
 
-    // 创建管道，用于线程间唤醒通信
-    int rt = pipe(m_tickleFds);
-    assert(!rt); // 确保管道创建成功
+    // 创建eventfd，用于线程间唤醒通信
+    // EFD_NONBLOCK：非阻塞模式
+    // EFD_CLOEXEC：进程执行exec时自动关闭
+    m_tickleFds = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+    assert(m_tickleFds > 0); // 确保eventfd创建成功
 
-    // 注册管道读端到epoll，监听读事件
+    // 注册eventfd到epoll，监听读事件
     epoll_event event;
     event.events  = EPOLLIN | EPOLLET; // 边缘触发模式
-    event.data.fd = m_tickleFds[0];
+    event.data.fd = m_tickleFds;
 
-    // 设置管道读端为非阻塞模式
-    rt = fcntl(m_tickleFds[0], F_SETFL, O_NONBLOCK);
-    assert(!rt);
-
-    // 将管道读端添加到epoll监控
-    rt = epoll_ctl(m_epfd, EPOLL_CTL_ADD, m_tickleFds[0], &event);
+    // 将eventfd添加到epoll监控
+    int rt = epoll_ctl(m_epfd, EPOLL_CTL_ADD, m_tickleFds, &event);
     assert(!rt);
 
     // 初始化文件描述符上下文数组，初始大小为32
@@ -127,8 +129,7 @@ Scheduler(threads, use_caller, name), TimerManager()
 IOManager::~IOManager() {
     stop(); // 停止调度器
     close(m_epfd);          // 关闭epoll文件描述符
-    close(m_tickleFds[0]);  // 关闭管道读端
-    close(m_tickleFds[1]);  // 关闭管道写端
+    close(m_tickleFds);     // 关闭eventfd
 
     // 清理文件描述符上下文数组
     for (size_t i = 0; i < m_fdContexts.size(); ++i) 
@@ -420,9 +421,10 @@ void IOManager::tickle()
     {
         return;
     }
-    // 向管道写入一个字符，唤醒阻塞在epoll_wait的线程
-    int rt = write(m_tickleFds[1], "T", 1);
-    assert(rt == 1); // 确保写入成功
+    // 向eventfd写入一个uint64_t值1，唤醒阻塞在epoll_wait的线程
+    uint64_t one = 1;
+    int rt = write(m_tickleFds, &one, sizeof(one));
+    assert(rt == sizeof(one)); // 确保写入成功
 }
 
 /**
@@ -443,7 +445,7 @@ bool IOManager::stopping()
  * 线程没有任务时阻塞等待IO事件或定时器事件
  */
 void IOManager::idle() 
-{    
+{
     // 最大处理事件数量
     static const uint64_t MAX_EVNETS = 256;
     // 用于存储epoll返回的事件
@@ -498,12 +500,12 @@ void IOManager::idle()
         {
             epoll_event& event = events[i];
 
-            // 处理唤醒事件（管道事件）
-            if (event.data.fd == m_tickleFds[0]) 
+            // 处理唤醒事件（eventfd事件）
+            if (event.data.fd == m_tickleFds) 
             {
-                uint8_t dummy[256];
+                uint64_t dummy;
                 // 边缘触发模式，需要读取所有数据
-                while (read(m_tickleFds[0], dummy, sizeof(dummy)) > 0);
+                while (read(m_tickleFds, &dummy, sizeof(dummy)) > 0);
                 continue;
             }
 
@@ -575,4 +577,4 @@ void IOManager::onTimerInsertedAtFront()
 {
     tickle(); // 唤醒线程，以便重新计算超时时间
 }
-} // end namespace sylar
+}

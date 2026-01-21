@@ -1,9 +1,9 @@
-#include "scheduler.h"
+#include <mycoroutine/scheduler.h>
 
 // 调试开关，设置为true可以输出更多调试信息
 static bool debug = true;
 
-namespace sylar {
+namespace mycoroutine {
 
 // 线程局部存储，指向当前线程的调度器实例
 static thread_local Scheduler* t_scheduler = nullptr;
@@ -32,7 +32,7 @@ void Scheduler::SetThis()
  * @param name 调度器名称
  */
 Scheduler::Scheduler(size_t threads, bool use_caller, const std::string &name):
-    m_useCaller(use_caller), m_name(name)
+    m_name(name), m_useCaller(use_caller)
 {
     assert(threads>0 && Scheduler::GetThis()==nullptr);
 
@@ -165,7 +165,7 @@ void Scheduler::run()
         // 3 执行任务
         if(task.fiber)
         {
-            {                    
+            {
                 std::lock_guard<std::mutex> lock(task.fiber->m_mutex);
                 if(task.fiber->getState()!=Fiber::TERM)
                 {
@@ -189,10 +189,10 @@ void Scheduler::run()
         }
         // 4 无任务 -> 执行空闲协程
         else
-        {        
+        {
             // 系统关闭 -> idle协程将从死循环跳出并结束 -> 此时的idle协程状态为TERM -> 再次进入将跳出循环并退出run()
             if (idle_fiber->getState() == Fiber::TERM) 
-            {    
+            {
                 if(debug) std::cout << "Schedule::run() ends in thread: " << thread_id << std::endl;
                 break;
             }

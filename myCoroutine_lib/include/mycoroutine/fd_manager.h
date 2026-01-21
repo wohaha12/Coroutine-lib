@@ -1,5 +1,5 @@
-#ifndef _FD_MANAGER_H_
-#define _FD_MANAGER_H_
+#ifndef __MYCOROUTINE_FD_MANAGER_H_
+#define __MYCOROUTINE_FD_MANAGER_H_
 
 /**
  * @file fd_manager.h
@@ -9,10 +9,10 @@
 
 #include <memory>          // 智能指针
 #include <shared_mutex>    // 读写锁
-#include "thread.h"        // 线程相关头文件
+#include <mycoroutine/thread.h>        // 线程相关头文件
 
 
-namespace sylar{  // sylar命名空间
+namespace mycoroutine{  // mycoroutine命名空间
 
 /**
  * @brief 文件描述符上下文类
@@ -190,6 +190,6 @@ public:
  */
 typedef Singleton<FdManager> FdMgr;
 
-} // end namespace sylar
+} // end namespace mycoroutine
 
-#endif // _FD_MANAGER_H_
+#endif // __MYCOROUTINE_FD_MANAGER_H_

@@ -1,10 +1,10 @@
-#ifndef __SYLAR_IOMANAGER_H__
-#define __SYLAR_IOMANAGER_H__
+#ifndef __MYCOROUTINE_IOMANAGER_H__
+#define __MYCOROUTINE_IOMANAGER_H__
 
-#include "scheduler.h" // 引入调度器基类
-#include "timer.h"     // 引入定时器管理器
+#include <mycoroutine/scheduler.h> // 引入调度器基类
+#include <mycoroutine/timer.h>     // 引入定时器管理器
 
-namespace sylar {
+namespace mycoroutine {
 
 /**
  * @brief IO管理器类
@@ -155,12 +155,12 @@ protected:
 
 private:
     int m_epfd = 0;                      // epoll文件描述符
-    int m_tickleFds[2];                  // 线程唤醒管道，[0]读端，[1]写端
+    int m_tickleFds = 0;                 // 线程唤醒eventfd
     std::atomic<size_t> m_pendingEventCount = {0}; // 待处理事件数量
     std::shared_mutex m_mutex;           // 用于保护m_fdContexts的读写锁
     std::vector<FdContext *> m_fdContexts; // 文件描述符上下文数组
 };
 
-} // end namespace sylar
+} // end namespace mycoroutine
 
 #endif

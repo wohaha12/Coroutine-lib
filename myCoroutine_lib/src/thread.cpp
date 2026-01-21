@@ -1,10 +1,10 @@
-#include "thread.h"
+#include <mycoroutine/thread.h>
 
 #include <sys/syscall.h>  // 用于调用系统调用获取线程ID
 #include <iostream>       // 用于输出错误信息
 #include <unistd.h>       // 提供POSIX操作系统API
 
-namespace sylar {
+namespace mycoroutine {
 
 // 线程局部存储，存储当前线程对象指针，每个线程独立拥有一份
 static thread_local Thread* t_thread          = nullptr;
@@ -157,5 +157,4 @@ void* Thread::run(void* arg)
     return 0;
 }
 
-} 
-
+}

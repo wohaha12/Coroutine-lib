@@ -3,8 +3,8 @@
 // 定义了Timer和TimerManager类的接口，用于实现高效的定时器管理功能
 // 支持一次性定时器和循环定时器，以及条件定时器功能
 // ============================================================================
-#ifndef __SYLAR_TIMER_H__
-#define __SYLAR_TIMER_H__
+#ifndef __MYCOROUTINE_TIMER_H__
+#define __MYCOROUTINE_TIMER_H__
 
 #include <memory>
 #include <vector>
@@ -14,7 +14,7 @@
 #include <functional>
 #include <mutex>
 
-namespace sylar {
+namespace mycoroutine {
 
 // 前向声明TimerManager类，避免循环依赖
 class TimerManager;
@@ -190,6 +190,6 @@ private:
     std::chrono::time_point<std::chrono::system_clock> m_previouseTime;
 };
 
-} // namespace sylar
+} // namespace mycoroutine
 
-#endif // __SYLAR_TIMER_H__
+#endif // __MYCOROUTINE_TIMER_H__

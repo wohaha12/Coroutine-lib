@@ -3,9 +3,9 @@
 // 实现了Timer和TimerManager类的具体功能，包括定时器的创建、取消、刷新、重置以及
 // 定时器管理器的添加、查询、过期处理等核心功能
 // ============================================================================
-#include "timer.h"
+#include <mycoroutine/timer.h>
 
-namespace sylar {
+namespace mycoroutine {
 
 // ============================================================================
 // Timer类方法实现
@@ -73,7 +73,7 @@ bool Timer::refresh()
 }
 
 // ============================================================================
-// 重置定时器
+// 重设定时器
 // 修改定时器的超时时间，并可选择是否从当前时间开始计时
 // @param ms 新的超时时间（毫秒）
 // @param from_now 是否从当前时间开始计算超时时间
@@ -358,4 +358,4 @@ bool TimerManager::detectClockRollover()
     return rollover;
 }
 
-} // namespace sylar
+} // namespace mycoroutine

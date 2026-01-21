@@ -1,9 +1,9 @@
-#include "hook.h"         // 引入钩子头文件
-#include "ioscheduler.h"  // 引入IO调度器
+#include <mycoroutine/hook.h>         // 引入钩子头文件
+#include <mycoroutine/iomanager.h>  // 引入IO调度器
 #include <dlfcn.h>         // 动态库加载函数
 #include <iostream>        // 标准输入输出
 #include <cstdarg>         // 可变参数支持
-#include "fd_manager.h"    // 引入文件描述符管理器
+#include <mycoroutine/fd_manager.h>    // 引入文件描述符管理器
 #include <string.h>        // 字符串处理函数
 
 // 宏定义：对所有需要hook的函数应用同一个操作
@@ -30,7 +30,7 @@
     XX(getsockopt) \
     XX(setsockopt) 
 
-namespace sylar{  // sylar命名空间
+namespace mycoroutine{  // mycoroutine命名空间
 
 // 线程本地存储：标识当前线程是否启用了钩子
 static thread_local bool t_hook_enable = false;
@@ -90,7 +90,7 @@ struct HookIniter
 // 全局静态对象，在程序启动时自动调用构造函数进行初始化
 static HookIniter s_hook_initer;
 
-} // end namespace sylar
+} // end namespace mycoroutine
 
 /**
  * @brief 定时器信息结构体
@@ -118,13 +118,13 @@ template<typename OriginFun, typename... Args>
 static ssize_t do_io(int fd, OriginFun fun, const char* hook_fun_name, uint32_t event, int timeout_so, Args&&... args) 
 {
     // 如果钩子未启用，直接调用原始函数
-    if(!sylar::t_hook_enable) 
+    if(!mycoroutine::t_hook_enable) 
     {
         return fun(fd, std::forward<Args>(args)...);
     }
 
     // 获取文件描述符上下文
-    std::shared_ptr<sylar::FdCtx> ctx = sylar::FdMgr::GetInstance()->get(fd);
+    std::shared_ptr<mycoroutine::FdCtx> ctx = mycoroutine::FdMgr::GetInstance()->get(fd);
     if(!ctx) 
     {
         // 如果没有上下文，直接调用原始函数
@@ -163,9 +163,9 @@ retry:
     if(n == -1 && errno == EAGAIN) 
     {
         // 获取当前IO管理器
-        sylar::IOManager* iom = sylar::IOManager::GetThis();
+        mycoroutine::IOManager* iom = mycoroutine::IOManager::GetThis();
         // 定时器指针
-        std::shared_ptr<sylar::Timer> timer;
+        std::shared_ptr<mycoroutine::Timer> timer;
         // 弱引用，用于定时器回调中检查资源是否还存在
         std::weak_ptr<timer_info> winfo(tinfo);
 
@@ -181,12 +181,12 @@ retry:
                 }
                 t->cancelled = ETIMEDOUT;  // 设置超时标志
                 // 取消事件并触发一次，使协程恢复执行
-                iom->cancelEvent(fd, (sylar::IOManager::Event)(event));
+                iom->cancelEvent(fd, (mycoroutine::IOManager::Event)(event));
             }, winfo);
         }
 
         // 添加IO事件，回调为当前协程
-        int rt = iom->addEvent(fd, (sylar::IOManager::Event)(event));
+        int rt = iom->addEvent(fd, (mycoroutine::IOManager::Event)(event));
         if(rt) 
         {   // 添加事件失败
             std::cout << hook_fun_name << " addEvent("<< fd << ", " << event << ")";
@@ -198,7 +198,7 @@ retry:
         } 
         else 
         {   // 添加事件成功，让出协程执行权
-            sylar::Fiber::GetThis()->yield();
+            mycoroutine::Fiber::GetThis()->yield();
      
             // 协程恢复，取消定时器
             if(timer) 
@@ -223,6 +223,7 @@ retry:
 
 
 
+
 extern "C"{
 
 // declaration -> sleep_fun sleep_f = nullptr;
@@ -240,15 +241,15 @@ extern "C"{
 unsigned int sleep(unsigned int seconds)
 {
 	// 如果钩子未启用，调用原始函数
-	if(!sylar::t_hook_enable)
+	if(!mycoroutine::t_hook_enable)
 	{
 		return sleep_f(seconds);
 	}
 
 	// 获取当前协程对象
-	std::shared_ptr<sylar::Fiber> fiber = sylar::Fiber::GetThis();
+	std::shared_ptr<mycoroutine::Fiber> fiber = mycoroutine::Fiber::GetThis();
 	// 获取当前IO管理器
-	sylar::IOManager* iom = sylar::IOManager::GetThis();
+	mycoroutine::IOManager* iom = mycoroutine::IOManager::GetThis();
 	// 添加定时器，在指定时间后重新调度该协程
 	iom->addTimer(seconds*1000, [fiber, iom](){iom->scheduleLock(fiber, -1);});
 	// 让出当前协程的执行权，等待定时器唤醒
@@ -265,15 +266,15 @@ unsigned int sleep(unsigned int seconds)
 int usleep(useconds_t usec)
 {
 	// 如果钩子未启用，调用原始函数
-	if(!sylar::t_hook_enable)
+	if(!mycoroutine::t_hook_enable)
 	{
 		return usleep_f(usec);
 	}
 
 	// 获取当前协程对象
-	std::shared_ptr<sylar::Fiber> fiber = sylar::Fiber::GetThis();
+	std::shared_ptr<mycoroutine::Fiber> fiber = mycoroutine::Fiber::GetThis();
 	// 获取当前IO管理器
-	sylar::IOManager* iom = sylar::IOManager::GetThis();
+	mycoroutine::IOManager* iom = mycoroutine::IOManager::GetThis();
 	// 添加定时器，在指定时间后重新调度该协程
 	iom->addTimer(usec/1000, [fiber, iom](){iom->scheduleLock(fiber);});
 	// 让出当前协程的执行权，等待定时器唤醒
@@ -291,7 +292,7 @@ int usleep(useconds_t usec)
 int nanosleep(const struct timespec* req, struct timespec* rem)
 {
 	// 如果钩子未启用，调用原始函数
-	if(!sylar::t_hook_enable)
+	if(!mycoroutine::t_hook_enable)
 	{
 		return nanosleep_f(req, rem);
 	}    
@@ -300,9 +301,9 @@ int nanosleep(const struct timespec* req, struct timespec* rem)
 	int timeout_ms = req->tv_sec*1000 + req->tv_nsec/1000/1000;
 
 	// 获取当前协程对象
-	std::shared_ptr<sylar::Fiber> fiber = sylar::Fiber::GetThis();
+	std::shared_ptr<mycoroutine::Fiber> fiber = mycoroutine::Fiber::GetThis();
 	// 获取当前IO管理器
-	sylar::IOManager* iom = sylar::IOManager::GetThis();
+	mycoroutine::IOManager* iom = mycoroutine::IOManager::GetThis();
 	// 添加定时器，在指定时间后重新调度该协程
 	iom->addTimer(timeout_ms, [fiber, iom](){iom->scheduleLock(fiber, -1);});
 	// 让出当前协程的执行权，等待定时器唤醒
@@ -321,7 +322,7 @@ int nanosleep(const struct timespec* req, struct timespec* rem)
 int socket(int domain, int type, int protocol)
 {
 	// 如果钩子未启用，调用原始函数
-	if(!sylar::t_hook_enable)
+	if(!mycoroutine::t_hook_enable)
 	{
 		return socket_f(domain, type, protocol);
 	}
@@ -334,7 +335,7 @@ int socket(int domain, int type, int protocol)
 		return fd;
 	}
 	// 获取并初始化文件描述符上下文
-	sylar::FdMgr::GetInstance()->get(fd, true);
+	mycoroutine::FdMgr::GetInstance()->get(fd, true);
 	return fd;
 }
 
@@ -350,13 +351,13 @@ int socket(int domain, int type, int protocol)
 int connect_with_timeout(int fd, const struct sockaddr* addr, socklen_t addrlen, uint64_t timeout_ms) 
 {
     // 如果钩子未启用，调用原始函数
-    if(!sylar::t_hook_enable) 
+    if(!mycoroutine::t_hook_enable) 
     {
         return connect_f(fd, addr, addrlen);
     }
 
     // 获取文件描述符上下文
-    std::shared_ptr<sylar::FdCtx> ctx = sylar::FdMgr::GetInstance()->get(fd);
+    std::shared_ptr<mycoroutine::FdCtx> ctx = mycoroutine::FdMgr::GetInstance()->get(fd);
     if(!ctx || ctx->isClosed()) 
     {
         errno = EBADF;
@@ -387,8 +388,8 @@ int connect_with_timeout(int fd, const struct sockaddr* addr, socklen_t addrlen,
     }
 
     // 连接进行中，等待可写事件（表示连接成功或失败）
-    sylar::IOManager* iom = sylar::IOManager::GetThis();
-    std::shared_ptr<sylar::Timer> timer;
+    mycoroutine::IOManager* iom = mycoroutine::IOManager::GetThis();
+    std::shared_ptr<mycoroutine::Timer> timer;
     std::shared_ptr<timer_info> tinfo(new timer_info);
     std::weak_ptr<timer_info> winfo(tinfo);
 
@@ -403,15 +404,15 @@ int connect_with_timeout(int fd, const struct sockaddr* addr, socklen_t addrlen,
                 return;
             }
             t->cancelled = ETIMEDOUT;
-            iom->cancelEvent(fd, sylar::IOManager::WRITE);
+            iom->cancelEvent(fd, mycoroutine::IOManager::WRITE);
         }, winfo);
     }
 
     // 添加可写事件
-    int rt = iom->addEvent(fd, sylar::IOManager::WRITE);
+    int rt = iom->addEvent(fd, mycoroutine::IOManager::WRITE);
     if(rt == 0) 
     {   // 事件添加成功，让出协程执行权
-        sylar::Fiber::GetThis()->yield();
+        mycoroutine::Fiber::GetThis()->yield();
 
         // 协程恢复，取消定时器
         if(timer) 
@@ -484,11 +485,11 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
 	// 使用通用IO操作模板函数处理accept
-	int fd = do_io(sockfd, accept_f, "accept", sylar::IOManager::READ, SO_RCVTIMEO, addr, addrlen);
+	int fd = do_io(sockfd, accept_f, "accept", mycoroutine::IOManager::READ, SO_RCVTIMEO, addr, addrlen);
 	if(fd>=0)
 	{
 		// 为新接受的连接创建文件描述符上下文
-		sylar::FdMgr::GetInstance()->get(fd, true);
+		mycoroutine::FdMgr::GetInstance()->get(fd, true);
 	}
 	return fd;
 }
@@ -503,7 +504,7 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
  */
 ssize_t read(int fd, void *buf, size_t count)
 {
-	return do_io(fd, read_f, "read", sylar::IOManager::READ, SO_RCVTIMEO, buf, count);	
+	return do_io(fd, read_f, "read", mycoroutine::IOManager::READ, SO_RCVTIMEO, buf, count);	
 }
 
 /**
@@ -516,7 +517,7 @@ ssize_t read(int fd, void *buf, size_t count)
  */
 ssize_t readv(int fd, const struct iovec *iov, int iovcnt)
 {
-	return do_io(fd, readv_f, "readv", sylar::IOManager::READ, SO_RCVTIMEO, iov, iovcnt);	
+	return do_io(fd, readv_f, "readv", mycoroutine::IOManager::READ, SO_RCVTIMEO, iov, iovcnt);	
 }
 
 /**
@@ -530,7 +531,7 @@ ssize_t readv(int fd, const struct iovec *iov, int iovcnt)
  */
 ssize_t recv(int sockfd, void *buf, size_t len, int flags)
 {
-	return do_io(sockfd, recv_f, "recv", sylar::IOManager::READ, SO_RCVTIMEO, buf, len, flags);	
+	return do_io(sockfd, recv_f, "recv", mycoroutine::IOManager::READ, SO_RCVTIMEO, buf, len, flags);	
 }
 
 /**
@@ -546,7 +547,7 @@ ssize_t recv(int sockfd, void *buf, size_t len, int flags)
  */
 ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen)
 {
-	return do_io(sockfd, recvfrom_f, "recvfrom", sylar::IOManager::READ, SO_RCVTIMEO, buf, len, flags, src_addr, addrlen);	
+	return do_io(sockfd, recvfrom_f, "recvfrom", mycoroutine::IOManager::READ, SO_RCVTIMEO, buf, len, flags, src_addr, addrlen);	
 }
 
 /**
@@ -559,7 +560,7 @@ ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *
  */
 ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
-	return do_io(sockfd, recvmsg_f, "recvmsg", sylar::IOManager::READ, SO_RCVTIMEO, msg, flags);	
+	return do_io(sockfd, recvmsg_f, "recvmsg", mycoroutine::IOManager::READ, SO_RCVTIMEO, msg, flags);	
 }
 
 /**
@@ -572,7 +573,7 @@ ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
  */
 ssize_t write(int fd, const void *buf, size_t count)
 {
-	return do_io(fd, write_f, "write", sylar::IOManager::WRITE, SO_SNDTIMEO, buf, count);	
+	return do_io(fd, write_f, "write", mycoroutine::IOManager::WRITE, SO_SNDTIMEO, buf, count);	
 }
 
 /**
@@ -585,7 +586,7 @@ ssize_t write(int fd, const void *buf, size_t count)
  */
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
 {
-	return do_io(fd, writev_f, "writev", sylar::IOManager::WRITE, SO_SNDTIMEO, iov, iovcnt);	
+	return do_io(fd, writev_f, "writev", mycoroutine::IOManager::WRITE, SO_SNDTIMEO, iov, iovcnt);	
 }
 
 /**
@@ -599,7 +600,7 @@ ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
  */
 ssize_t send(int sockfd, const void *buf, size_t len, int flags)
 {
-	return do_io(sockfd, send_f, "send", sylar::IOManager::WRITE, SO_SNDTIMEO, buf, len, flags);	
+	return do_io(sockfd, send_f, "send", mycoroutine::IOManager::WRITE, SO_SNDTIMEO, buf, len, flags);	
 }
 
 /**
@@ -615,7 +616,7 @@ ssize_t send(int sockfd, const void *buf, size_t len, int flags)
  */
 ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen)
 {
-	return do_io(sockfd, sendto_f, "sendto", sylar::IOManager::WRITE, SO_SNDTIMEO, buf, len, flags, dest_addr, addrlen);	
+	return do_io(sockfd, sendto_f, "sendto", mycoroutine::IOManager::WRITE, SO_SNDTIMEO, buf, len, flags, dest_addr, addrlen);	
 }
 
 /**
@@ -628,7 +629,7 @@ ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct 
  */
 ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags)
 {
-	return do_io(sockfd, sendmsg_f, "sendmsg", sylar::IOManager::WRITE, SO_SNDTIMEO, msg, flags);	
+	return do_io(sockfd, sendmsg_f, "sendmsg", mycoroutine::IOManager::WRITE, SO_SNDTIMEO, msg, flags);	
 }
 
 /**
@@ -640,25 +641,25 @@ ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags)
 int close(int fd)
 {
 	// 检查钩子是否启用，如果未启用则直接调用原始close函数
-	if(!sylar::t_hook_enable)
+	if(!mycoroutine::t_hook_enable)
 	{
 		return close_f(fd);
 	}
 
 	// 获取文件描述符上下文
-	std::shared_ptr<sylar::FdCtx> ctx = sylar::FdMgr::GetInstance()->get(fd);
+	std::shared_ptr<mycoroutine::FdCtx> ctx = mycoroutine::FdMgr::GetInstance()->get(fd);
 
 	if(ctx)
 	{
 		// 获取当前IO管理器
-		auto iom = sylar::IOManager::GetThis();
+		auto iom = mycoroutine::IOManager::GetThis();
 		if(iom)
 		{
 			// 取消与该文件描述符相关的所有IO事件
 			iom->cancelAll(fd);
 		}
 		// 从文件描述符管理器中删除该文件描述符的上下文
-		sylar::FdMgr::GetInstance()->del(fd);
+		mycoroutine::FdMgr::GetInstance()->del(fd);
 	}
 	// 调用原始close函数关闭文件描述符
 	return close_f(fd);
@@ -684,7 +685,7 @@ int fcntl(int fd, int cmd, ... /* arg */ )
                 int arg = va_arg(va, int); // 获取下一个int类型参数
                 va_end(va);
                 // 获取文件描述符上下文
-                std::shared_ptr<sylar::FdCtx> ctx = sylar::FdMgr::GetInstance()->get(fd);
+                std::shared_ptr<mycoroutine::FdCtx> ctx = mycoroutine::FdMgr::GetInstance()->get(fd);
                 // 如果上下文不存在、文件已关闭或不是套接字，则直接调用原始fcntl
                 if(!ctx || ctx->isClosed() || !ctx->isSocket()) 
                 {
@@ -710,7 +711,7 @@ int fcntl(int fd, int cmd, ... /* arg */ )
                 va_end(va);
                 int arg = fcntl_f(fd, cmd); // 调用原始函数获取标志
                 // 获取文件描述符上下文
-                std::shared_ptr<sylar::FdCtx> ctx = sylar::FdMgr::GetInstance()->get(fd);
+                std::shared_ptr<mycoroutine::FdCtx> ctx = mycoroutine::FdMgr::GetInstance()->get(fd);
                 // 如果上下文不存在、文件已关闭或不是套接字，直接返回原始结果
                 if(!ctx || ctx->isClosed() || !ctx->isSocket()) 
                 {
@@ -805,7 +806,7 @@ int ioctl(int fd, unsigned long request, ...)
         // 将参数转换为int并检查其真值（0为假，非0为真）
         bool user_nonblock = !!*(int*)arg;
         // 获取文件描述符上下文
-        std::shared_ptr<sylar::FdCtx> ctx = sylar::FdMgr::GetInstance()->get(fd);
+        std::shared_ptr<mycoroutine::FdCtx> ctx = mycoroutine::FdMgr::GetInstance()->get(fd);
         // 如果上下文不存在、文件已关闭或不是套接字，直接调用原始ioctl
         if(!ctx || ctx->isClosed() || !ctx->isSocket()) 
         {
@@ -846,7 +847,7 @@ int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optl
 int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
 {
     // 检查钩子是否启用，如果未启用则直接调用原始函数
-    if(!sylar::t_hook_enable) 
+    if(!mycoroutine::t_hook_enable) 
     {
         return setsockopt_f(sockfd, level, optname, optval, optlen);
     }
@@ -858,7 +859,7 @@ int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t
         if(optname == SO_RCVTIMEO || optname == SO_SNDTIMEO) 
         {
             // 获取文件描述符上下文
-            std::shared_ptr<sylar::FdCtx> ctx = sylar::FdMgr::GetInstance()->get(sockfd);
+            std::shared_ptr<mycoroutine::FdCtx> ctx = mycoroutine::FdMgr::GetInstance()->get(sockfd);
             if(ctx) 
             {
                 // 将timeval格式转换为毫秒并设置超时

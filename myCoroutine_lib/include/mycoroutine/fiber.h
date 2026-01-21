@@ -1,5 +1,5 @@
-#ifndef _COROUTINE_H_
-#define _COROUTINE_H_
+#ifndef __MYCOROUTINE_FIBER_H_
+#define __MYCOROUTINE_FIBER_H_
 
 #include <iostream>     // 标准输入输出
 #include <memory>       // 智能指针
@@ -10,7 +10,7 @@
 #include <unistd.h>     // 系统调用
 #include <mutex>        // 互斥锁
 
-namespace sylar {
+namespace mycoroutine {
 
 /**
  * @brief 协程类，基于ucontext_t实现的用户级协程

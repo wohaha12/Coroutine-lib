@@ -1,9 +1,9 @@
-#include "fiber.h"
+#include <mycoroutine/fiber.h>
 
 // 调试模式开关，设置为true时会输出协程的创建、销毁和切换信息
 static bool debug = false;
 
-namespace sylar {
+namespace mycoroutine {
 
 /**
  * 线程局部存储变量，保存当前线程相关的协程信息
