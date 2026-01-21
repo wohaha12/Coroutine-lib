@@ -1,7 +1,7 @@
 #include "scheduler.h"
 
 // 调试开关，设置为true可以输出更多调试信息
-static bool debug = false;
+static bool debug = true;
 
 namespace sylar {
 
