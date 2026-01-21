@@ -26,3 +26,5 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+.trae/
+.cladeu/
