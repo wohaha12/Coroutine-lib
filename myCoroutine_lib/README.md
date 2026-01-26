@@ -1,63 +1,167 @@
-# 项目概述
+# mycoroutine - C++17 协程库
+
+## 项目概述
+
+mycoroutine 是一个基于 C++17 标准开发的高性能协程库，提供了完整的协程实现、调度器、IO 多路复用以及系统调用钩子机制。该库旨在简化异步编程模型，提高程序的并发处理能力和资源利用率，同时保持良好的易用性和可扩展性。
 
 ## 为什么要做协程库？
 
-1、**不“烂大街”，主打一个差异化**
+1. **差异化优势**：相比传统的 WebServer 项目，协程库具有更高的技术含量和差异化优势
+2. **实用价值**：协程作为强大的并发编程技术，在大量 I/O 操作或并发任务场景下能显著提高性能和可维护性
+3. **易于集成**：协程库作为独立组件，可以方便地应用到其他项目中，为传统项目增添新意
+4. **知识提升**：深入理解协程技术，增加知识深度和广度，提高面试通过率
 
-现在CPP的项目其实可选的余地并不多，大家主要是做webserver。
+## 核心功能亮点
 
-2、**协程确实有用**
+- ✅ **高性能协程**：基于 ucontext 实现的有栈协程，切换开销低
+- ✅ **强大的调度器**：支持多线程调度和负载均衡
+- ✅ **高效 IO 管理**：基于 epoll 的 IO 多路复用，支持事件循环和定时器
+- ✅ **透明非阻塞**：系统调用钩子机制，自动将阻塞 IO 转换为非阻塞协程挂起
+- ✅ **灵活的定时器**：支持一次性和周期性定时器，精度可达毫秒级
+- ✅ **完善的日志系统**：支持多种日志级别，线程安全的日志输出
 
-面试中，面试官经常会问这样的问题，“你知道线程和进程区别吗？”然后会紧接着追问“你了解协程吗？
+## 快速开始
 
-协程和进程、线程又有什么区别？
+### 环境要求
 
-”我们通过基础知识的学习和如WebServer此类项目，已经对进程和线程有了比较深的理解，但对协程相关知识却知之甚少。
+- **编译器**：GCC 7+ 或 Clang 6+
+- **C++标准**：C++17
+- **构建系统**：CMake 3.15+
+- **操作系统**：Linux
 
-协程作为一种强大的并发编程技术，可以在需要处理大量I/O操作或者并发任务的情况下提高程序的性能和可维护性。
+### 编译安装
 
-在许多场景应用广泛，如果我们能做一个协程库的项目，不但可以让简历更加出彩，对以后的工作也大有帮助。
+```bash
+# 克隆仓库
+git clone https://github.com/wohaha12/Coroutine-lib.git
+cd Coroutine-lib/myCoroutine_lib
 
-3、**协程库只是一个轮子，可以方便的应用在其他项目中**，增加其他项目的“新意”
+# 构建
+mkdir build && cd build
+cmake ..
+make
 
-自己手动完成一个协程库，还可以直接将我们自己编写的协程库用在其他项目里。
+# 安装（可选）
+sudo make install
+```
 
-就比如“烂大街”的WebServer，引入协程技术，不但可以提高并发和资源利用率，还大大简化了异步编程的复杂性，使代码更易于理解和维护，这样这个“烂大街”的项目也就有了新意。
+### 简单示例
 
-4、**增加知识的深度和广度，提高面试通过率**
+```cpp
+#include <iostream>
+#include <mycoroutine/fiber.h>
+#include <mycoroutine/iomanager.h>
 
-深入理解了协程技术后，即使面试官不主动问协程技术，就算问进程与线程，我们也可以主动提及协程，与线程和进程对比，引导面试官问协程相关的问题，主动展示自己知识的深度和广度，这会大大提高我们面试的通过率。
+using namespace mycoroutine;
 
-### 本项目文档
+void test_fiber() {
+    std::cout << "Fiber start" << std::endl;
+    
+    // 让出执行权
+    Fiber::GetThis()->yield();
+    
+    std::cout << "Fiber resume" << std::endl;
+}
 
-这次的项目文档依然非常齐全，**从 前置知识 到 理论基础，从 动手实现 到 项目拓展 再到最后 简历如何写，面试会问的问题**，都给大家安排了。
+int main() {
+    // 创建IO管理器，使用4个线程
+    IOManager iom(3, true, "TestIOManager");
+    
+    // 调度协程
+    iom.scheduleLock([]() {
+        test_fiber();
+    });
+    
+    std::cout << "Main start" << std::endl;
+    
+    // 启动IO管理器
+    iom.start();
+    
+    return 0;
+}
+```
 
-* 前序
-    * 为什么要做协程库？
-    * 所需要的基础知识
-    * 编程语言
-    * 操作系统&Linux
-    * 计算机网络
-    * 参考书籍&开源项目&博客
-* **动手前先了解一下协程**
-    * 协程基础知识
-        * 什么是协程？
-        * 对称协程与非对称协程
-        * 有栈协程与无栈协程
-        * 独立栈与共享栈
-        * 协程的优缺点
-    * C++有哪些协程库？
-* **开始动手**
-    * 协程类的实现
-    * 协程调度
-    * 协程+IO
-    * 定时器
-    * hook
-* **写好了就完了吗**？
-    * 项目扩展
-    * 协程+
-    * 性能测试
-* **如何应对面试**？
-    * 简历怎么写？
-    * 面试会问哪些问题呢？
+## 模块导航
+
+mycoroutine 库采用模块化设计，各模块职责清晰，低耦合高内聚。以下是核心模块的详细文档：
+
+| 模块名称 | 主要职责 | 详细文档 |
+|---------|---------|--------|
+| **Fiber** | 协程核心实现 | [fiber.md](docs/fiber.md) |
+| **Scheduler** | 协程调度器 | [scheduler.md](docs/scheduler.md) |
+| **IOManager** | IO事件管理 | [iomanager.md](docs/iomanager.md) |
+| **Timer** | 定时器管理 | [timer.md](docs/timer.md) |
+| **Thread** | 线程管理 | [thread.md](docs/thread.md) |
+| **FDManager** | 文件描述符管理 | [fd_manager.md](docs/fd_manager.md) |
+| **Hook** | 系统调用钩子 | [hook.md](docs/hook.md) |
+| **Utils** | 工具库 | [utils.md](docs/utils.md) |
+| **架构概述** | 整体设计 | [architecture_overview.md](docs/architecture_overview.md) |
+
+## 构建和测试
+
+### 编译选项
+
+- `-DCMAKE_BUILD_TYPE=Debug`：调试模式，包含调试信息
+- `-DCMAKE_BUILD_TYPE=Release`：发布模式，优化编译
+- `-DBUILD_EXAMPLES=ON`：构建示例程序（默认ON）
+- `-DBUILD_TESTS=ON`：构建测试程序
+
+### 运行示例
+
+```bash
+# 在build目录下
+./examples/coroutine_http_server
+```
+
+### 运行测试
+
+```bash
+# 在build目录下
+./tests/test_fiber
+./tests/test_scheduler
+./tests/test_iomanager
+```
+
+## 项目结构
+
+```
+myCoroutine_lib/
+├── CMakeLists.txt          # 主CMake文件
+├── README.md               # 项目说明文档
+├── docs/                   # 详细文档目录
+│   ├── architecture_overview.md
+│   ├── fiber.md
+│   ├── scheduler.md
+│   ├── iomanager.md
+│   ├── timer.md
+│   ├── thread.md
+│   ├── fd_manager.md
+│   ├── hook.md
+│   └── utils.md
+├── examples/               # 示例程序
+│   ├── CMakeLists.txt
+│   └── coroutine_http_server.cpp
+├── include/                # 头文件目录
+│   └── mycoroutine/        # 库头文件
+│       ├── fd_manager.h
+│       ├── fiber.h
+│       ├── hook.h
+│       ├── iomanager.h
+│       ├── scheduler.h
+│       ├── thread.h
+│       ├── timer.h
+│       └── utils.h
+├── src/                    # 源文件目录
+│   ├── fd_manager.cpp
+│   ├── fiber.cpp
+│   ├── hook.cpp
+│   ├── iomanager.cpp
+│   ├── scheduler.cpp
+│   ├── thread.cpp
+│   ├── timer.cpp
+│   └── utils.cpp
+└── tests/                  # 测试程序
+    ├── epoll/              # epoll测试
+    └── libevent/           # libevent测试
+```
 
